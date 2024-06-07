@@ -40,12 +40,19 @@ class TextDetector(object):
         self.args = args
         self.det_algorithm = args.det_algorithm
         self.use_onnx = args.use_onnx
+
+        # resize_long 与 另外两个参数互斥
+        # 添加控制, 当resize_long已配置时, 忽略另外两个参数
+        det_resize_for_test = {}
+        if args.det_resize_long is not None:
+            det_resize_for_test['resize_long'] = args.det_resize_long
+        else:
+            det_resize_for_test['limit_side_len'] = args.det_limit_side_len
+            det_resize_for_test['limit_type'] = args.det_limit_type
+
         pre_process_list = [
             {
-                "DetResizeForTest": {
-                    "limit_side_len": args.det_limit_side_len,
-                    "limit_type": args.det_limit_type,
-                }
+                "DetResizeForTest": det_resize_for_test
             },
             {
                 "NormalizeImage": {
@@ -80,7 +87,8 @@ class TextDetector(object):
             pre_process_list[1] = {
                 "NormalizeImage": {
                     "std": [1.0, 1.0, 1.0],
-                    "mean": [0.48109378172549, 0.45752457890196, 0.40787054090196],
+                    "mean": [0.48109378172549, 0.45752457890196,
+                             0.40787054090196],
                     "scale": "1./255.",
                     "order": "hwc",
                 }
@@ -115,7 +123,8 @@ class TextDetector(object):
             postprocess_params["box_type"] = args.det_box_type
             postprocess_params["scale"] = args.det_pse_scale
         elif self.det_algorithm == "FCE":
-            pre_process_list[0] = {"DetResizeForTest": {"rescale_img": [1080, 736]}}
+            pre_process_list[0] = {
+                "DetResizeForTest": {"rescale_img": [1080, 736]}}
             postprocess_params["name"] = "FCEPostProcess"
             postprocess_params["scales"] = args.scales
             postprocess_params["alpha"] = args.alpha
@@ -163,7 +172,8 @@ class TextDetector(object):
                 pids=pid,
                 process_name=None,
                 gpu_ids=gpu_id if args.use_gpu else None,
-                time_keys=["preprocess_time", "inference_time", "postprocess_time"],
+                time_keys=["preprocess_time", "inference_time",
+                           "postprocess_time"],
                 warmup=2,
                 logger=logger,
             )
@@ -221,7 +231,8 @@ class TextDetector(object):
         if len(dt_boxes_new) > 0:
             max_points = max(len(polygon) for polygon in dt_boxes_new)
             dt_boxes_new = [
-                self.pad_polygons(polygon, max_points) for polygon in dt_boxes_new
+                self.pad_polygons(polygon, max_points) for polygon in
+                dt_boxes_new
             ]
 
         dt_boxes = np.array(dt_boxes_new)
@@ -300,8 +311,8 @@ class TextDetector(object):
         dt_boxes = np.zeros((0, 4, 2), dtype=np.float32)
         elapse = 0
         if (
-            img.shape[0] / img.shape[1] > 2
-            and img.shape[0] > self.args.det_limit_side_len
+                img.shape[0] / img.shape[1] > 2
+                and img.shape[0] > self.args.det_limit_side_len
         ):
             start_h = 0
             end_h = 0
@@ -314,9 +325,9 @@ class TextDetector(object):
                 offset = start_h
                 # To prevent text blocks from being cut off, roll back a certain buffer area.
                 if (
-                    len(sub_dt_boxes) == 0
-                    or img.shape[1] - max([x[-1][1] for x in sub_dt_boxes])
-                    > MIN_BOUND_DISTANCE
+                        len(sub_dt_boxes) == 0
+                        or img.shape[1] - max([x[-1][1] for x in sub_dt_boxes])
+                        > MIN_BOUND_DISTANCE
                 ):
                     start_h = end_h
                 else:
@@ -331,7 +342,7 @@ class TextDetector(object):
                         start_h += bottom_line
                         sub_dt_boxes = sub_dt_boxes[
                             sub_dt_boxes[:, 2, 1] <= bottom_line
-                        ]
+                            ]
                     else:
                         start_h = end_h
                 if len(sub_dt_boxes) > 0:
@@ -342,13 +353,14 @@ class TextDetector(object):
                     else:
                         dt_boxes = np.append(
                             dt_boxes,
-                            sub_dt_boxes + np.array([0, offset], dtype=np.float32),
+                            sub_dt_boxes + np.array([0, offset],
+                                                    dtype=np.float32),
                             axis=0,
                         )
                 elapse += sub_elapse
         elif (
-            img.shape[1] / img.shape[0] > 3
-            and img.shape[1] > self.args.det_limit_side_len * 3
+                img.shape[1] / img.shape[0] > 3
+                and img.shape[1] > self.args.det_limit_side_len * 3
         ):
             start_w = 0
             end_w = 0
@@ -360,9 +372,9 @@ class TextDetector(object):
                 sub_dt_boxes, sub_elapse = self.predict(subimg)
                 offset = start_w
                 if (
-                    len(sub_dt_boxes) == 0
-                    or img.shape[0] - max([x[-1][0] for x in sub_dt_boxes])
-                    > MIN_BOUND_DISTANCE
+                        len(sub_dt_boxes) == 0
+                        or img.shape[0] - max([x[-1][0] for x in sub_dt_boxes])
+                        > MIN_BOUND_DISTANCE
                 ):
                     start_w = end_w
                 else:
@@ -375,7 +387,8 @@ class TextDetector(object):
                     )
                     if right_line > 0:
                         start_w += right_line
-                        sub_dt_boxes = sub_dt_boxes[sub_dt_boxes[:, 1, 0] <= right_line]
+                        sub_dt_boxes = sub_dt_boxes[
+                            sub_dt_boxes[:, 1, 0] <= right_line]
                     else:
                         start_w = end_w
                 if len(sub_dt_boxes) > 0:
@@ -386,7 +399,8 @@ class TextDetector(object):
                     else:
                         dt_boxes = np.append(
                             dt_boxes,
-                            sub_dt_boxes + np.array([offset, 0], dtype=np.float32),
+                            sub_dt_boxes + np.array([offset, 0],
+                                                    dtype=np.float32),
                             axis=0,
                         )
                 elapse += sub_elapse
@@ -405,7 +419,8 @@ if __name__ == "__main__":
     # logger
     log_file = args.save_log_path
     if os.path.isdir(args.save_log_path) or (
-        not os.path.exists(args.save_log_path) and args.save_log_path.endswith("/")
+            not os.path.exists(
+                args.save_log_path) and args.save_log_path.endswith("/")
     ):
         log_file = os.path.join(log_file, "benchmark_detection.log")
     logger = get_logger(log_file=log_file)
@@ -440,19 +455,19 @@ if __name__ == "__main__":
             total_time += elapse
             if len(imgs) > 1:
                 save_pred = (
-                    os.path.basename(image_file)
-                    + "_"
-                    + str(index)
-                    + "\t"
-                    + str(json.dumps([x.tolist() for x in dt_boxes]))
-                    + "\n"
+                        os.path.basename(image_file)
+                        + "_"
+                        + str(index)
+                        + "\t"
+                        + str(json.dumps([x.tolist() for x in dt_boxes]))
+                        + "\n"
                 )
             else:
                 save_pred = (
-                    os.path.basename(image_file)
-                    + "\t"
-                    + str(json.dumps([x.tolist() for x in dt_boxes]))
-                    + "\n"
+                        os.path.basename(image_file)
+                        + "\t"
+                        + str(json.dumps([x.tolist() for x in dt_boxes]))
+                        + "\n"
                 )
             save_results.append(save_pred)
             logger.info(save_pred)
@@ -464,7 +479,8 @@ if __name__ == "__main__":
                 )
             else:
                 logger.info(
-                    "{} The predict time of {}: {}".format(idx, image_file, elapse)
+                    "{} The predict time of {}: {}".format(idx, image_file,
+                                                           elapse)
                 )
 
             src_im = utility.draw_text_det_res(dt_boxes, img)
@@ -472,11 +488,13 @@ if __name__ == "__main__":
             if flag_gif:
                 save_file = image_file[:-3] + "png"
             elif flag_pdf:
-                save_file = image_file.replace(".pdf", "_" + str(index) + ".png")
+                save_file = image_file.replace(".pdf",
+                                               "_" + str(index) + ".png")
             else:
                 save_file = image_file
             img_path = os.path.join(
-                draw_img_save_dir, "det_res_{}".format(os.path.basename(save_file))
+                draw_img_save_dir,
+                "det_res_{}".format(os.path.basename(save_file))
             )
             cv2.imwrite(img_path, src_im)
             logger.info("The visualized image saved in {}".format(img_path))

@@ -55,10 +55,15 @@ def init_args():
     parser.add_argument("--page_num", type=int, default=0)
     parser.add_argument("--det_algorithm", type=str, default="DB")
     parser.add_argument("--det_model_dir", type=str)
+
     parser.add_argument("--det_limit_side_len", type=float, default=960)
     parser.add_argument("--det_limit_type", type=str, default="max")
-    parser.add_argument("--det_box_type", type=str, default="quad")
 
+    # 解决推理模型与预测模型相差过大问题
+    # 此参数与上文中两个参数互斥
+    parser.add_argument("--det_resize_long", type=float, default=None)
+
+    parser.add_argument("--det_box_type", type=str, default="quad")
     # DB parmas
     parser.add_argument("--det_db_thresh", type=float, default=0.3)
     parser.add_argument("--det_db_box_thresh", type=float, default=0.6)
@@ -96,10 +101,12 @@ def init_args():
     parser.add_argument("--rec_batch_num", type=int, default=6)
     parser.add_argument("--max_text_length", type=int, default=25)
     parser.add_argument(
-        "--rec_char_dict_path", type=str, default="./ppocr/utils/ppocr_keys_v1.txt"
+        "--rec_char_dict_path", type=str,
+        default="./ppocr/utils/ppocr_keys_v1.txt"
     )
     parser.add_argument("--use_space_char", type=str2bool, default=True)
-    parser.add_argument("--vis_font_path", type=str, default="./doc/fonts/simfang.ttf")
+    parser.add_argument("--vis_font_path", type=str,
+                        default="./doc/fonts/simfang.ttf")
     parser.add_argument("--drop_score", type=float, default=0.5)
 
     # params for e2e
@@ -135,7 +142,8 @@ def init_args():
     parser.add_argument("--sr_batch_num", type=int, default=1)
 
     #
-    parser.add_argument("--draw_img_save_dir", type=str, default="./inference_results")
+    parser.add_argument("--draw_img_save_dir", type=str,
+                        default="./inference_results")
     parser.add_argument("--save_crop_res", type=str2bool, default=False)
     parser.add_argument("--crop_res_save_dir", type=str, default="./output")
 
@@ -194,7 +202,8 @@ def create_predictor(args, mode, logger):
 
         model_file_path = model_dir
         if not os.path.exists(model_file_path):
-            raise ValueError("not find model file path {}".format(model_file_path))
+            raise ValueError(
+                "not find model file path {}".format(model_file_path))
         if args.use_gpu:
             sess = ort.InferenceSession(
                 model_file_path, providers=["CUDAExecutionProvider"]
@@ -208,11 +217,13 @@ def create_predictor(args, mode, logger):
         for file_name in file_names:
             model_file_path = "{}/{}.pdmodel".format(model_dir, file_name)
             params_file_path = "{}/{}.pdiparams".format(model_dir, file_name)
-            if os.path.exists(model_file_path) and os.path.exists(params_file_path):
+            if os.path.exists(model_file_path) and os.path.exists(
+                    params_file_path):
                 break
         if not os.path.exists(model_file_path):
             raise ValueError(
-                "not find model.pdmodel or inference.pdmodel in {}".format(model_dir)
+                "not find model.pdmodel or inference.pdmodel in {}".format(
+                    model_dir)
             )
         if not os.path.exists(params_file_path):
             raise ValueError(
@@ -245,18 +256,22 @@ def create_predictor(args, mode, logger):
                     workspace_size=1 << 30,
                     precision_mode=precision,
                     max_batch_size=args.max_batch_size,
-                    min_subgraph_size=args.min_subgraph_size,  # skip the minmum trt subgraph
+                    min_subgraph_size=args.min_subgraph_size,
+                    # skip the minmum trt subgraph
                     use_calib_mode=False,
                 )
 
                 # collect shape
-                trt_shape_f = os.path.join(model_dir, f"{mode}_trt_dynamic_shape.txt")
+                trt_shape_f = os.path.join(model_dir,
+                                           f"{mode}_trt_dynamic_shape.txt")
 
                 if not os.path.exists(trt_shape_f):
                     config.collect_shape_range_info(trt_shape_f)
-                    logger.info(f"collect dynamic shape info into : {trt_shape_f}")
+                    logger.info(
+                        f"collect dynamic shape info into : {trt_shape_f}")
                 try:
-                    config.enable_tuned_tensorrt_dynamic_shape(trt_shape_f, True)
+                    config.enable_tuned_tensorrt_dynamic_shape(trt_shape_f,
+                                                               True)
                 except Exception as E:
                     logger.info(E)
                     logger.info("Please keep your paddlepaddle-gpu >= 2.3.0!")
@@ -309,7 +324,8 @@ def create_predictor(args, mode, logger):
 def get_output_tensors(args, mode, predictor):
     output_names = predictor.get_output_names()
     output_tensors = []
-    if mode == "rec" and args.rec_algorithm in ["CRNN", "SVTR_LCNet", "SVTR_HGNet"]:
+    if mode == "rec" and args.rec_algorithm in ["CRNN", "SVTR_LCNet",
+                                                "SVTR_HGNet"]:
         output_name = "softmax_0.tmp_0"
         if output_name in output_names:
             return [predictor.get_output_handle(output_name)]
@@ -378,12 +394,12 @@ def resize_img(img, input_size=600):
 
 
 def draw_ocr(
-    image,
-    boxes,
-    txts=None,
-    scores=None,
-    drop_score=0.5,
-    font_path="./doc/fonts/simfang.ttf",
+        image,
+        boxes,
+        txts=None,
+        scores=None,
+        drop_score=0.5,
+        font_path="./doc/fonts/simfang.ttf",
 ):
     """
     Visualize the results of OCR detection and recognition
@@ -401,7 +417,8 @@ def draw_ocr(
         scores = [1] * len(boxes)
     box_num = len(boxes)
     for i in range(box_num):
-        if scores is not None and (scores[i] < drop_score or math.isnan(scores[i])):
+        if scores is not None and (
+                scores[i] < drop_score or math.isnan(scores[i])):
             continue
         box = np.reshape(np.array(boxes[i]), [-1, 1, 2]).astype(np.int64)
         image = cv2.polylines(np.array(image), [box], True, (255, 0, 0), 2)
@@ -421,12 +438,12 @@ def draw_ocr(
 
 
 def draw_ocr_box_txt(
-    image,
-    boxes,
-    txts=None,
-    scores=None,
-    drop_score=0.5,
-    font_path="./doc/fonts/simfang.ttf",
+        image,
+        boxes,
+        txts=None,
+        scores=None,
+        drop_score=0.5,
+        font_path="./doc/fonts/simfang.ttf",
 ):
     h, w = image.height, image.width
     img_left = image.copy()
@@ -439,7 +456,9 @@ def draw_ocr_box_txt(
     for idx, (box, txt) in enumerate(zip(boxes, txts)):
         if scores is not None and scores[idx] < drop_score:
             continue
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        color = (
+            random.randint(0, 255), random.randint(0, 255),
+            random.randint(0, 255))
         draw_left.polygon(box, fill=color)
         img_right_text = draw_box_txt_fine((w, h), box, txt, font_path)
         pts = np.array(box, np.int32).reshape((-1, 1, 2))
@@ -532,7 +551,8 @@ def str_count(s):
 
 
 def text_visual(
-    texts, scores, img_h=400, img_w=600, threshold=0.0, font_path="./doc/simfang.ttf"
+        texts, scores, img_h=400, img_w=600, threshold=0.0,
+        font_path="./doc/simfang.ttf"
 ):
     """
     create new blank img and draw txt on it
@@ -551,7 +571,7 @@ def text_visual(
 
     def create_blank_img():
         blank_img = np.ones(shape=[img_h, img_w], dtype=np.int8) * 255
-        blank_img[:, img_w - 1 :] = 0
+        blank_img[:, img_w - 1:] = 0
         blank_img = Image.fromarray(blank_img).convert("RGB")
         draw_txt = ImageDraw.Draw(blank_img)
         return blank_img, draw_txt
@@ -580,7 +600,7 @@ def text_visual(
             else:
                 new_txt = "    " + txt
             draw_txt.text((0, gap * count), new_txt, txt_color, font=font)
-            txt = tmp[img_w // font_size - 4 :]
+            txt = tmp[img_w // font_size - 4:]
             if count >= img_h // gap - 1:
                 txt_img_list.append(np.array(blank_img))
                 blank_img, draw_txt = create_blank_img()
@@ -639,12 +659,14 @@ def get_rotate_crop_image(img, points):
     assert len(points) == 4, "shape of points must be 4*2"
     img_crop_width = int(
         max(
-            np.linalg.norm(points[0] - points[1]), np.linalg.norm(points[2] - points[3])
+            np.linalg.norm(points[0] - points[1]),
+            np.linalg.norm(points[2] - points[3])
         )
     )
     img_crop_height = int(
         max(
-            np.linalg.norm(points[0] - points[3]), np.linalg.norm(points[1] - points[2])
+            np.linalg.norm(points[0] - points[3]),
+            np.linalg.norm(points[1] - points[2])
         )
     )
     pts_std = np.float32(
@@ -692,20 +714,22 @@ def get_minarea_rect_crop(img, points):
     return crop_img
 
 
-def slice_generator(image, horizontal_stride, vertical_stride, maximum_slices=500):
+def slice_generator(image, horizontal_stride, vertical_stride,
+                    maximum_slices=500):
     if not isinstance(image, np.ndarray):
         image = np.array(image)
 
     image_h, image_w = image.shape[:2]
     vertical_num_slices = (image_h + vertical_stride - 1) // vertical_stride
-    horizontal_num_slices = (image_w + horizontal_stride - 1) // horizontal_stride
+    horizontal_num_slices = (
+                                    image_w + horizontal_stride - 1) // horizontal_stride
 
     assert (
-        vertical_num_slices > 0
+            vertical_num_slices > 0
     ), f"Invalid number ({vertical_num_slices}) of vertical slices"
 
     assert (
-        horizontal_num_slices > 0
+            horizontal_num_slices > 0
     ), f"Invalid number ({horizontal_num_slices}) of horizontal slices"
 
     if vertical_num_slices >= maximum_slices:
@@ -745,9 +769,9 @@ def merge_boxes(box1, box2, x_threshold, y_threshold):
     min_x2, max_x2, min_y2, max_y2 = calculate_box_extents(box2)
 
     if (
-        abs(min_y1 - min_y2) <= y_threshold
-        and abs(max_y1 - max_y2) <= y_threshold
-        and abs(max_x1 - min_x2) <= x_threshold
+            abs(min_y1 - min_y2) <= y_threshold
+            and abs(max_y1 - max_y2) <= y_threshold
+            and abs(max_x1 - min_x2) <= x_threshold
     ):
         new_xmin = min(min_x1, min_x2)
         new_xmax = max(max_x1, max_x2)
@@ -773,10 +797,11 @@ def merge_fragmented(boxes, x_threshold=10, y_threshold=10):
 
         merged_box = [point[:] for point in box1]
 
-        for j, box2 in enumerate(boxes[i + 1 :], start=i + 1):
+        for j, box2 in enumerate(boxes[i + 1:], start=i + 1):
             if j not in visited:
                 merged_result = merge_boxes(
-                    merged_box, box2, x_threshold=x_threshold, y_threshold=y_threshold
+                    merged_box, box2, x_threshold=x_threshold,
+                    y_threshold=y_threshold
                 )
                 if merged_result:
                     merged_box = merged_result
@@ -792,7 +817,7 @@ def merge_fragmented(boxes, x_threshold=10, y_threshold=10):
 
 def check_gpu(use_gpu):
     if use_gpu and (
-        not paddle.is_compiled_with_cuda() or paddle.device.get_device() == "cpu"
+            not paddle.is_compiled_with_cuda() or paddle.device.get_device() == "cpu"
     ):
         use_gpu = False
     return use_gpu
