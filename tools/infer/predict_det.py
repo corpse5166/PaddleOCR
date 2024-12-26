@@ -44,7 +44,9 @@ class TextDetector(object):
         # 处理尺寸调整流程参数
         if args.det_resize_long != 0:
             det_resize_for_test = {
-                {"resize_long": args.det_resize_long}
+                "DetResizeForTest": {
+                    {"resize_long": args.det_resize_long}
+                }
             }
         else:
             det_resize_for_test = {
