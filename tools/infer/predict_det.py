@@ -45,7 +45,7 @@ class TextDetector(object):
         if args.det_resize_long != 0:
             det_resize_for_test = {
                 "DetResizeForTest": {
-                    {"resize_long": args.det_resize_long}
+                    "resize_long": args.det_resize_long
                 }
             }
         else:
