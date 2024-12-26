@@ -59,6 +59,11 @@ def init_args():
     parser.add_argument("--page_num", type=int, default=0)
     parser.add_argument("--det_algorithm", type=str, default="DB")
     parser.add_argument("--det_model_dir", type=str)
+
+    ## 解决推理模型与预测模型相差过大问题
+    # 与det_limit_side_len互斥, 配置一个非0值将排除det_limit_side_len参数
+    parser.add_argument("--det_resize_long", type=float, default=0)
+
     parser.add_argument("--det_limit_side_len", type=float, default=960)
     parser.add_argument("--det_limit_type", type=str, default="max")
     parser.add_argument("--det_box_type", type=str, default="quad")
